@@ -46,6 +46,10 @@ void *start_frontend(void *arg) {
         return NULL;
     }
 
+    char open_cmd[256 + 20];
+    snprintf(open_cmd, sizeof(open_cmd), "xdg-open %s", listen_addr);
+    system(open_cmd);
+
     while (keep_running) {
         mg_mgr_poll(&mgr, 1000);
     }

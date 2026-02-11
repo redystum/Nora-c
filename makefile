@@ -23,7 +23,7 @@ PROGRAM_OPT=args
 MODULE_SRCS := $(wildcard src/*/*.c)
 
 # 2. Other sources
-BACKEND_SRCS := $(wildcard backend/*.c) $(wildcard backend/*/*.c)
+BACKEND_SRCS := $(wildcard backend/*.c) $(wildcard backend/*/*.c) $(wildcard backend/*/*/*.c)
 FRONTEND_SRCS := $(wildcard frontend/*.c) $(wildcard frontend/*/*.c)
 SHARED_SRCS := $(wildcard shared/*.c) $(wildcard shared/*/*.c)
 LIBS_SRCS := $(wildcard lib/*.c) $(wildcard lib/*/*.c)

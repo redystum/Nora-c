@@ -1,5 +1,14 @@
 #include "backend.h"
 
+#include "controllers/projects/projects.h"
+
+static const controller_t controllers[] = {
+    {.path = "/getprojects", .method = NORA_GET, .fun = get_projects},
+
+    // end
+    {NULL, NULL, 0}
+};
+
 static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     if (ev == MG_EV_HTTP_MSG) {
         DEBUG("Received HTTP message");
@@ -11,9 +20,27 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
             return;
         }
 
-        struct mg_str response = mg_str("Hello from the backend!");
-        mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "%.*s", (int) response.len, response.buf);
+        int i = 0;
+        int found = 0;
+        while (controllers[i].path != NULL) {
+            if (mg_match(hm->uri, mg_str(controllers[i].path), NULL)) {
+                controller_t ct = controllers[i];
+                if (ct.method == NORA_GET && mg_match(hm->method, mg_str("GET"), NULL)) {
+                    found = 1;
+                    ct.fun(c, hm);
+                    break;
+                } else if (ct.method == NORA_POST && mg_match(hm->method, mg_str("POST"), NULL)) {
+                    found = 1;
+                    ct.fun(c, hm);
+                    break;
+                }
+            }
+            i++;
+        }
 
+        if (!found) {
+            mg_http_reply(c, 404, "Content-Type: text/plain\r\n", "Not found");
+        }
     } else if (ev == MG_EV_WS_MSG) {
         DEBUG("Received WebSocket message");
         struct mg_ws_message *wm = (struct mg_ws_message *) ev_data;
@@ -25,8 +52,8 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-void* start_backend(void* arg) {
-    threads_args_t* args = (threads_args_t*) arg;
+void *start_backend(void *arg) {
+    threads_args_t *args = (threads_args_t *) arg;
 
     mg_log_set(MG_LL_ERROR);
     struct mg_mgr mgr;
