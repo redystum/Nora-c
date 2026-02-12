@@ -1,5 +1,6 @@
 #include "backend.h"
 #include "controllers/controllers.h"
+#include "utils/utils.h"
 
 static const controller_t controllers[] = {
     {.path = "/projects", .method = NORA_GET, .fun = get_projects},
@@ -13,6 +14,18 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     if (ev == MG_EV_HTTP_MSG) {
         DEBUG("Received HTTP message");
         struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+
+        // cors stuff :/
+        if (mg_match(hm->method, mg_str("OPTIONS"), NULL)) {
+            mg_http_reply(c, 204,
+                "Access-Control-Allow-Origin: *\r\n"
+                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
+                "Access-Control-Max-Age: 86400\r\n"
+                "Content-Length: 0\r\n", "");
+            return;
+        }
+
         if (mg_match(hm->uri, mg_str("/ws"), NULL)) {
             // Upgrade the connection to WebSocket
             mg_ws_upgrade(c, hm, NULL);
@@ -39,7 +52,7 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
         }
 
         if (!found) {
-            mg_http_reply(c, 404, "Content-Type: text/plain\r\n", "Not found");
+            mg_http_reply(c, 404, DEFAULT_TEXT_HEADER, "Not found");
         }
     } else if (ev == MG_EV_WS_MSG) {
         DEBUG("Received WebSocket message");

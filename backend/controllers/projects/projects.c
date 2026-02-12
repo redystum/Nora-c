@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "../../../webDriver/src/utils/utils.h"
 #include "../../utils/utils.h"
 
 void get_projects(struct mg_connection *c, struct mg_http_message *hm) {
@@ -52,13 +54,13 @@ void get_projects(struct mg_connection *c, struct mg_http_message *hm) {
 
     char* response = cJSON_Print(response_json);
     cJSON_Delete(response_json);
-    mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s", response);
+    mg_http_reply(c, 200, DEFAULT_JSON_HEADER, "%s", response);
 }
 
 void create_project(struct mg_connection *c, struct mg_http_message *hm) {
     char *body = malloc(hm->body.len + 1);
     if (!body) {
-        mg_http_reply(c, 500, "Content-Type: text/plain\r\n", "Memory allocation failed");
+        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Memory allocation failed");
         return;
     }
     memcpy(body, hm->body.buf, hm->body.len);
@@ -68,25 +70,26 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
     free(body);
 
     if (!json) {
-        mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Invalid JSON");
+        mg_http_reply(c, 400, DEFAULT_TEXT_HEADER, "Invalid JSON");
         return;
     }
 
     const cJSON *name = cJSON_GetObjectItemCaseSensitive(json, "name");
     if (!cJSON_IsString(name) || (name->valuestring == NULL)) {
         cJSON_Delete(json);
-        mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Missing or invalid 'name' field");
+        mg_http_reply(c, 400, DEFAULT_TEXT_HEADER, "Missing or invalid 'name' field");
         return;
     }
 
     char *home = getenv("HOME");
     if (home) {
         char path[1024];
-        snprintf(path, sizeof(path), "%s/documents/Nora/%s", home, name->valuestring);
+        snprintf(path, sizeof(path), "%s/Documents/Nora/%s", home, name->valuestring);
+        DEBUG("%s", path);
 
         if (mkdir_p(path) == -1) {
             cJSON_Delete(json);
-            mg_http_reply(c, 500, "Content-Type: text/plain\r\n", "Failed to create project directory");
+            mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project directory");
             return;
         }
 
@@ -105,7 +108,7 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
                 cJSON_AddStringToObject(project_json, "description", "");
             }
 
-            char date[20];
+            char date[64];
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
             snprintf(date, sizeof(date), "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
@@ -114,7 +117,6 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
             char *prj_json_str = cJSON_Print(project_json);
             fprintf(f, "%s", prj_json_str);
             fclose(f);
-            free(prj_json_str);
             cJSON_Delete(project_json);
 
             char subdirs[4][20] = {"objects", "scenes", "scripts", "reports"};
@@ -123,17 +125,18 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
                 snprintf(subdir_path, sizeof(subdir_path), "%s/%s", path, subdirs[i]);
                 if (mkdir_p(subdir_path) == -1) {
                     cJSON_Delete(json);
-                    mg_http_reply(c, 500, "Content-Type: text/plain\r\n", "Failed to create project subdirectories");
+                    mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project subdirectories");
                     return;
                 }
             }
 
-            mg_http_reply(c, 201, "Content-Type: application/json\r\n", "%s", prj_json_str);
+            mg_http_reply(c, 201, DEFAULT_JSON_HEADER, "%s", prj_json_str);
+            free(prj_json_str);
         } else {
-            mg_http_reply(c, 500, "Content-Type: text/plain\r\n", "Failed to create project file");
+            mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project file");
         }
     } else {
-        mg_http_reply(c, 500, "Content-Type: text/plain\r\n", "HOME environment variable not set");
+        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "HOME environment variable not set");
     }
 
     cJSON_Delete(json);

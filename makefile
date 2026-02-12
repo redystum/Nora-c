@@ -114,6 +114,6 @@ cppcheck:
 	cppcheck --enable=all --verbose --suppress=missingIncludeSystem $(ALL_SRCS) src/*/*.h backend/*.h frontend/*.h
 
 run: $(PROGRAM)
-	./$(PROGRAM)
+	./$(PROGRAM) -o 0
 
 all_debugon: debugon all
