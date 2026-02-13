@@ -53,7 +53,7 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
         }
 
         if (!found) {
-            mg_http_reply(c, 404, DEFAULT_TEXT_HEADER, "Not found");
+            error_response(c, 404, "Not found");
         }
     } else if (ev == MG_EV_WS_MSG) {
         DEBUG("Received WebSocket message");

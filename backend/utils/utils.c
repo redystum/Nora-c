@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "../../webDriver/src/utils/utils.h"
 
+#include <cjson/cJSON.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
@@ -42,4 +43,15 @@ int mkdir_p(const char *path) {
     }
 
     return 0;
+}
+
+void error_response(struct mg_connection *c, int status_code, const char *message) {
+    cJSON *response_json = cJSON_CreateObject();
+    cJSON_AddNumberToObject(response_json, "status", status_code);
+    cJSON_AddStringToObject(response_json, "error", message);
+
+    char* response = cJSON_Print(response_json);
+    cJSON_Delete(response_json);
+    mg_http_reply(c, status_code, DEFAULT_JSON_HEADER, "%s", response);
+    free(response);
 }

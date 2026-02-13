@@ -17,7 +17,7 @@ void get_projects(struct mg_connection *c, struct mg_http_message *hm) {
     char *home = getenv("HOME");
     if (!home) {
         cJSON_Delete(response_json);
-        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "HOME environment variable not set");
+        error_response(c, 500, "HOME environment variable not set");
         return;
     }
 
@@ -27,7 +27,7 @@ void get_projects(struct mg_connection *c, struct mg_http_message *hm) {
     DIR *noraDir = opendir(path);
     if (!noraDir) {
         cJSON_Delete(response_json);
-        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to open projects directory");
+        error_response(c, 500, "Failed to open projects directory");
         return;
     }
 
@@ -69,7 +69,7 @@ void get_projects(struct mg_connection *c, struct mg_http_message *hm) {
 void create_project(struct mg_connection *c, struct mg_http_message *hm) {
     char *body = malloc(hm->body.len + 1);
     if (!body) {
-        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Memory allocation failed");
+        error_response(c, 500, "Memory allocation failed");
         return;
     }
     memcpy(body, hm->body.buf, hm->body.len);
@@ -79,14 +79,14 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
     free(body);
 
     if (!json) {
-        mg_http_reply(c, 400, DEFAULT_TEXT_HEADER, "Invalid JSON");
+        error_response(c, 400, "Invalid JSON");
         return;
     }
 
     const cJSON *name = cJSON_GetObjectItemCaseSensitive(json, "name");
     if (!cJSON_IsString(name) || (name->valuestring == NULL)) {
         cJSON_Delete(json);
-        mg_http_reply(c, 400, DEFAULT_TEXT_HEADER, "Missing or invalid 'name' field");
+        error_response(c, 400, "Missing or invalid 'name' field");
         return;
     }
 
@@ -98,7 +98,7 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
 
         if (mkdir_p(path) == -1) {
             cJSON_Delete(json);
-            mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project directory");
+            error_response(c, 500, "Failed to create project directory");
             return;
         }
 
@@ -134,7 +134,7 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
                 snprintf(subdir_path, sizeof(subdir_path), "%s/%s", path, subdirs[i]);
                 if (mkdir_p(subdir_path) == -1) {
                     cJSON_Delete(json);
-                    mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project subdirectories");
+                    error_response(c, 500, "Failed to create project subdirectories");
                     return;
                 }
             }
@@ -142,10 +142,10 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
             mg_http_reply(c, 201, DEFAULT_JSON_HEADER, "%s", prj_json_str);
             free(prj_json_str);
         } else {
-            mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "Failed to create project file");
+            error_response(c, 500, "Failed to create project file");
         }
     } else {
-        mg_http_reply(c, 500, DEFAULT_TEXT_HEADER, "HOME environment variable not set");
+        error_response(c, 500, "HOME environment variable not set");
     }
 
     cJSON_Delete(json);
