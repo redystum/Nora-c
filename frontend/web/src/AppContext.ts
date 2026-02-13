@@ -9,6 +9,11 @@ interface AppContextProps {
 }
 
 
-const AppContext = createContext<AppContextProps>({setIsGlobalLoading: _ => false, backendURL: null, wsURL: null, openOpenProjectModal: null});
+const AppContext = createContext<AppContextProps>({
+    setIsGlobalLoading: _ => false,
+    backendURL: null,
+    wsURL: null,
+    openOpenProjectModal: null
+});
 export const useAppContext = () => useContext(AppContext);
 export default AppContext;

@@ -7,15 +7,17 @@ import {
 } from 'lucide-preact';
 import logo from '../../assets/logo.png';
 import {useAppContext} from "../../AppContext";
+import {Project} from "../../components/openProjetcModal";
 
 
 interface HeaderProps {
     isSaved: boolean;
     isConsoleOpen: boolean;
     setIsConsoleOpen: (open: boolean) => void;
+    project?: Project;
 }
 
-export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen }: HeaderProps){
+export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen, project }: HeaderProps){
 
     const {openOpenProjectModal} = useAppContext()
 
@@ -40,7 +42,7 @@ export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen }: HeaderProps
                 </button>
 
                 <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-neutral-100 font-medium tracking-tight">main.c</span>
+                    <span className="font-mono text-sm text-neutral-100 font-medium tracking-tight">{ project?.name }</span>
                     <span
                         className="focus:outline-none ml-1 transition-transform hover:scale-110"
                         title={isSaved ? "Saved" : "Unsaved changes"}
