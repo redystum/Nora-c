@@ -1,4 +1,4 @@
-import {Folder, Calendar, Search, Plus} from 'lucide-preact';
+import {Folder, Calendar, Search, Plus, RefreshCw} from 'lucide-preact';
 import {useEffect, useState, useMemo} from 'preact/hooks';
 import {useAppContext} from '../AppContext';
 
@@ -17,6 +17,7 @@ interface OpenProjectModalProps {
 export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectModalProps) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [reload, setReload] = useState<number>(0);
 
     if (!isOpen) return null;
 
@@ -31,18 +32,18 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                     console.error("Failed to fetch projects:", res.statusText);
                 }
                 const data = await res.json();
-                setProjects(data.projects);
+                setProjects(data as Project[]);
             }
         )
 
-    }, [backendURL]);
+    }, [reload]);
 
     const filteredProjects = useMemo(() => {
         if (!searchQuery.trim()) return projects;
 
         const lowerQuery = searchQuery.toLowerCase();
 
-        return projects
+        const filtered = projects
             .filter((project) => {
                 const nameMatch = project.name.toLowerCase().includes(lowerQuery);
                 const descMatch = project.description?.toLowerCase().includes(lowerQuery);
@@ -57,6 +58,7 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                 if (!aNameMatch && bNameMatch) return 1;
                 return 0;
             });
+        return filtered.length > 0 ? filtered : [];
     }, [projects, searchQuery]);
 
     if (!isOpen) return null;
@@ -86,9 +88,14 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                         Open Project
                     </h2>
                     <div className="flex gap-2">
+                        <button onClick={() => setReload(prev => prev + 1)}
+                                className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 transition-all"
+                                title="Refresh Project List">
+                            <RefreshCw size={14}/>
+                        </button>
                         <button
                             onClick={onNewProject}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 transition-all"
+                            className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 transition-all"
                             title="Create New Project"
                         >
                             <Plus size={14}/>
@@ -116,7 +123,7 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                 {/* Project List */}
                 <div
                     className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
-                    {filteredProjects.length === 0 ? (
+                    {filteredProjects?.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-neutral-500">
                             <div
                                 className="w-16 h-16 bg-neutral-900 rounded-full flex items-center justify-center mb-4">
@@ -126,11 +133,11 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                             <p className="text-xs opacity-60 mt-1">Try searching for something else</p>
                         </div>
                     ) : (
-                        filteredProjects.map((project) => (
+                        filteredProjects?.map((project) => (
                             <button
                                 key={project.name}
                                 onClick={() => onSelect(project)}
-                                className="w-full text-left p-3.5 rounded-xl hover:bg-neutral-800/50 border border-transparent hover:border-neutral-800/80 transition-all group flex gap-4 items-start"
+                                className="cursor-pointer w-full text-left p-3.5 rounded-xl hover:bg-neutral-800/50 border border-transparent hover:border-neutral-800/80 transition-all group flex gap-4 items-start"
                             >
                                 <div
                                     className="mt-1 p-2 bg-neutral-900 rounded-lg group-hover:bg-neutral-800 transition-colors text-neutral-500 group-hover:text-neutral-300 border border-neutral-800">
@@ -164,7 +171,7 @@ export function OpenProjectModal({isOpen, onSelect, onNewProject}: OpenProjectMo
                 {/* Footer status line */}
                 <div
                     className="px-4 py-2 border-t border-white/5 bg-[#141414] text-[10px] text-neutral-500 flex justify-between items-center">
-                    <span>{filteredProjects.length} projects</span>
+                    <span>{filteredProjects?.length} projects</span>
                 </div>
             </div>
         </div>

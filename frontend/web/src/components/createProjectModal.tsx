@@ -66,7 +66,7 @@ export function CreateProjectModal({ isOpen, onBack, onCreate }: CreateProjectMo
                     </h2>
                     <button
                         onClick={onBack}
-                        className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-all"
+                        className="cursor-pointer p-1.5 rounded-lg text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-all"
                         title="Close"
                     >
                         <X size={18} />
@@ -103,7 +103,7 @@ export function CreateProjectModal({ isOpen, onBack, onCreate }: CreateProjectMo
                          <button
                             type="button"
                             onClick={onBack}
-                            className="px-4 py-2 text-sm font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/5 rounded-lg transition-all duration-200"
+                            className="cursor-pointer px-4 py-2 text-sm font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/5 rounded-lg transition-all duration-200"
                         >
                             Cancel
                         </button>

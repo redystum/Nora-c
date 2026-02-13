@@ -16,18 +16,45 @@ export function App() {
     const [wsURL, setWsURL] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isGlobalLoading, setIsGlobalLoading] = useState<boolean>(false);
+    const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
+    const [retry, setRetry] = useState<number>(1);
 
     useEffect(() => {
+        if (retry > 10) {
+            setLoadingStatus("Failed to load configuration after multiple attempts. Please check your connection configurations on backend and try again.");
+            return;
+        }
+
+        setLoadingStatus("Loading configuration...");
         fetch('/backend.txt')
             .then(res => res.text())
             .then(url => {
                 let [backend, ws] = url.trim().split('\n');
-                setBackendURL(backend.trim());
-                setWsURL(ws.trim());
-                setIsLoading(false);
+
+                fetch(`${backend.trim()}/`).then(res => {
+                    if (!res.ok) {
+                        console.error('Backend response check failed:', res.statusText);
+                        setLoadingStatus(`Backend is not responding. Retrying (${retry})...`);
+                        setTimeout(() => setRetry(prev => prev + 1), 3000);
+                        return;
+                    }
+
+                    setBackendURL(backend.trim());
+                    setWsURL(ws.trim());
+                    setIsLoading(false);
+                }).catch(err => {
+                    console.error('Backend response check error:', err);
+                    setLoadingStatus(`Backend is not responding. Retrying (${retry})...`);
+                    setTimeout(() => setRetry(prev => prev + 1), 3000);
+                    return;
+                });
             })
-            .catch(err => console.error("Failed to load backend URL:", err));
-    }, []);
+            .catch(err => {
+                console.error('Error loading configuration:', err);
+                setLoadingStatus(`Failed to load configuration. Retrying (${retry})...`);
+                setTimeout(() => setRetry(prev => prev + 1), 3000);
+            });
+    }, [retry]);
 
     const handleProjectSelect = (project: Project) => {
         console.log('Selected project:', project);
@@ -52,7 +79,7 @@ export function App() {
     return (
         <AppContext.Provider value={{setIsGlobalLoading, backendURL, wsURL}}>
             {isLoading ? (
-                <LoadingScreen/>
+                <LoadingScreen text={loadingStatus}/>
             ) : (
                 <>
                     {isGlobalLoading && <LoadingScreen/>}
