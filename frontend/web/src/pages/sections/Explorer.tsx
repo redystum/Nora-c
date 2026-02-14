@@ -76,7 +76,7 @@ export function Explorer({explorerWidth, scrollbarClasses, project}: ExplorerPro
                             <span>No files found in this project.</span>
                         </div>
                     ) : (
-                        <ProjectTreeView projectTree={projectTree}/>
+                        <ProjectTreeView projectTree={projectTree} project={project} onReload={() => setReload(r => r + 1)}/>
                     )
                 )}
             </div>

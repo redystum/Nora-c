@@ -151,6 +151,37 @@ void create_project(struct mg_connection *c, struct mg_http_message *hm) {
     cJSON_Delete(json);
 }
 
+void get_files_recursive(const char *base_path, const char *subdir, cJSON *files_array) {
+    char path[2048];
+    snprintf(path, sizeof(path), "%s/%s", base_path, subdir);
+
+    DIR *dir = opendir(path);
+    if (!dir) {
+        return;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        cJSON *file_json = cJSON_CreateObject();
+        cJSON_AddStringToObject(file_json, "name", entry->d_name);
+        cJSON_AddStringToObject(file_json, "topParent", subdir);
+        cJSON_AddBoolToObject(file_json, "isFolder", entry->d_type == DT_DIR);
+
+        if (entry->d_type == DT_DIR) {
+            cJSON * sub_files_array = cJSON_CreateArray();
+            get_files_recursive(path, entry->d_name, sub_files_array);
+            cJSON_AddItemToObject(file_json, "children", sub_files_array);
+        }
+
+        cJSON_AddItemToArray(files_array, file_json);
+    }
+    closedir(dir);
+}
+
 void get_project_files(struct mg_connection *c, struct mg_http_message *hm) {
     char project_name[256];
     if (mg_http_get_var(&hm->query, "projectName", project_name, sizeof(project_name)) <= 0) {
@@ -188,21 +219,9 @@ void get_project_files(struct mg_connection *c, struct mg_http_message *hm) {
         }
 
         cJSON *files_array = cJSON_CreateArray();
-        struct dirent *entry;
-        while ((entry = readdir(subdir)) != NULL) {
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-                continue;
-            }
+        get_files_recursive(path, subdirs[i], files_array);
 
-            cJSON *file_json = cJSON_CreateObject();
-            cJSON_AddStringToObject(file_json, "name", entry->d_name);
-            cJSON_AddStringToObject(file_json, "topParent", subdirs[i]);
-            cJSON_AddBoolToObject(file_json, "isFolder", entry->d_type == DT_DIR);
-            cJSON_AddItemToArray(files_array, file_json);
-        }
-        closedir(subdir);
         cJSON_AddItemToObject(response_json, subdirs[i], files_array);
-
     }
 
     char* response = cJSON_Print(response_json);
