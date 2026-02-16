@@ -12,7 +12,7 @@ export function Home({project}: { project?: Project }) {
     const [consoleHeight, setConsoleHeight] = useState<number>(250);
     const [isConsoleOpen, setIsConsoleOpen] = useState<boolean>(true);
     const [isSaved, setIsSaved] = useState<boolean>(true);
-    const [file, setFile] = useState<{ name: string; folder: string }>({name: 'main.c', folder: 'src'});
+    const [file, setFile] = useState<{ path: string; parentFolders: string[], name: string } | null>(null);
 
     const handleEditorOnSave = (saved: boolean) => {
         setIsSaved(saved);
@@ -66,6 +66,11 @@ export function Home({project}: { project?: Project }) {
         document.addEventListener('mouseup', onMouseUp);
     };
 
+    const handleSelectFile = (filePath: string) => {
+        const pathParts = filePath.split('/');
+        const fileName = pathParts.pop() || '';
+        setFile({path: filePath, parentFolders: pathParts, name: fileName});
+    }
 
     // Reusable custom scrollbar classes
     const scrollbarClasses = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-800 hover:[&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full transition-colors";
@@ -83,7 +88,9 @@ export function Home({project}: { project?: Project }) {
 
             <div className="flex flex-1 overflow-hidden">
 
-                <Explorer project={project} explorerWidth={explorerWidth} scrollbarClasses={scrollbarClasses}/>
+                <Explorer project={project} explorerWidth={explorerWidth} scrollbarClasses={scrollbarClasses}
+                            onSelectFile={handleSelectFile}
+                />
 
                 {/* Vertical Resizer */}
                 <div
@@ -100,19 +107,25 @@ export function Home({project}: { project?: Project }) {
                         className="flex flex-1 flex-col bg-neutral-900 border border-neutral-800/80 rounded-xl shadow-lg shadow-black/40 overflow-hidden relative">
                         <div
                             className="flex items-center px-4 h-9 bg-neutral-900/50 border-b border-neutral-800/60 select-none text-xs font-mono text-neutral-500">
-                            <span className="hover:text-neutral-300 cursor-pointer transition-colors">{project?.name}</span>
+                            <span
+                                className="hover:text-neutral-300 cursor-pointer transition-colors">{project?.name}</span>
                             <ChevronRight size={14} className="mx-1 opacity-50"/>
-                            <span className="hover:text-neutral-300 cursor-pointer transition-colors">{file.folder}</span>
-                            <ChevronRight size={14} className="mx-1 opacity-50"/>
-                            <span className="text-neutral-200">{file.name}</span>
+                            {file && file?.parentFolders.map((folder, _) => (
+                                <>
+                                    <span
+                                        className="hover:text-neutral-300 cursor-pointer transition-colors">{folder}</span>
+                                    <ChevronRight size={14} className="mx-1 opacity-50"/>
+                                </>
+                            ))}
+                            <span className="text-neutral-200">{file?.name}</span>
                             {!isSaved &&
-                                <Circle size={10} className="text-neutral-400 fill-neutral-400"/>
+                                <Circle size={10} className="ms-2 text-neutral-400 fill-neutral-400"/>
                             }
                         </div>
-                        
+
                         <div
                             className="absolute top-9 bottom-0 left-0 right-0 m-2 rounded-lg overflow-hidden bg-neutral-950 shadow-inner shadow-black">
-                            <MonacoEditor isSavedCallBack={handleEditorOnSave}/>
+                            <MonacoEditor isSavedCallBack={handleEditorOnSave} project={project} file={file?.path}/>
                         </div>
                     </div>
 

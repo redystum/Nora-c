@@ -1,77 +1,167 @@
 import {useEffect, useRef, useState} from 'preact/hooks';
 import * as monaco from 'monaco-editor';
+import {Project} from "../../components/openProjetcModal";
+import {LoadingElement} from "../../components/LoadingElement";
+import {useAppContext} from "../../AppContext";
 
 interface MonacoEditorProps {
-	isSavedCallBack: (saved: boolean) => void;
+    isSavedCallBack: (saved: boolean) => void;
+    file?: string;
+    project?: Project;
 }
 
-export function MonacoEditor({ isSavedCallBack }: MonacoEditorProps) {
-	const editorContainer = useRef(null);
-	const editorRef = useRef(null);
-	const [isSaved, setIsSaved] = useState<boolean>(true);
+export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps) {
+    const editorContainer = useRef(null);
+    const editorRef = useRef(null);
+    const fileRef = useRef(file);
+    const projectRef = useRef(project);
 
-	monaco.editor.defineTheme("dark-neutral", {
-		base: "vs-dark",
-		inherit: true,
-		rules: [],
-		colors: {
-			"editor.background": "#0E0E0E",
-			"editor.foreground": "#FFFFFF",
+    const [isSaved, setIsSaved] = useState<boolean>(true);
+    const [content, setContent] = useState<string | null>(null);
 
-			"editorLineNumber.foreground": "#5A5A5A",
-			"editorLineNumber.activeForeground": "#FFFFFF",
+    const {backendURL, showError} = useAppContext();
 
-			"editorCursor.foreground": "#FFFFFF",
-			"editor.selectionBackground": "#2A2A2A",
-			"editor.lineHighlightBackground": "#1A1A1A",
+    useEffect(() => {
+        saveContent();
 
-			"editorWhitespace.foreground": "#2B2B2B",
-			"editorIndentGuide.background": "#2B2B2B",
-		},
-	});
+        fileRef.current = file;
+        projectRef.current = project;
+    }, [file, project]);
+
+    const saveContent = () => {
+        if (editorRef.current) {
+            console.log("Saving content:", editorRef.current.getValue());
+
+            const currentFile = fileRef.current;
+            const currentProject = projectRef.current;
+
+            fetch(`${backendURL}/files/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: editorRef.current.getValue(),
+                    projectName: currentProject.name,
+                    path: currentFile,
+                }),
+            }).then(async (response) => {
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    showError(err.error || `Failed to save file content: ${response.statusText}`);
+                    throw new Error(err.error || `Failed to save file content: ${response.statusText}`);
+                }
+
+                isSavedCallBack(true);
+                setIsSaved(true);
+            }).catch((err) => {
+                showError(err.message || 'Error saving file content');
+                console.error('Error saving file content:', err);
+            });
+
+        }
+    }
+
+    monaco.editor.defineTheme("dark-neutral", {
+        base: "vs-dark",
+        inherit: true,
+        rules: [],
+        colors: {
+            "editor.background": "#0E0E0E",
+            "editor.foreground": "#FFFFFF",
+
+            "editorLineNumber.foreground": "#5A5A5A",
+            "editorLineNumber.activeForeground": "#FFFFFF",
+
+            "editorCursor.foreground": "#FFFFFF",
+            "editor.selectionBackground": "#2A2A2A",
+            "editor.lineHighlightBackground": "#1A1A1A",
+
+            "editorWhitespace.foreground": "#2B2B2B",
+            "editorIndentGuide.background": "#2B2B2B",
+        },
+    });
 
 
-	useEffect(() => {
+    useEffect(() => {
+        if (editorContainer.current) {
+            editorRef.current = monaco.editor.create(editorContainer.current, {
+                value: '',
+                language: 'c',
+                theme: 'dark-neutral',
+                automaticLayout: true,
+                fontFamily: "JetBrains Mono, Fira Code, monospace",
+                fontSize: 14,
+                minimap: {enabled: false},
+                cursorBlinking: "smooth",
+                renderLineHighlight: "all",
+            });
 
-		if (editorContainer.current) {
-			editorRef.current = monaco.editor.create(editorContainer.current, {
-				value: '#include <stdio.h>\n\nint main() {\n\tprintf("Hello, World!\\n");\n\treturn 0;\n}\n'.trim(),
-				language: 'c',
-				theme: 'dark-neutral',
-				automaticLayout: true,
-				fontFamily: "JetBrains Mono, Fira Code, monospace",
-				fontSize: 14,
-				minimap: { enabled: false },
-				cursorBlinking: "smooth",
-				renderLineHighlight: "all",
-			});
+            editorRef.current.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                if (editorRef.current) {
+                    saveContent();
+                }
+            });
 
-			editorRef.current.onDidChangeModelContent(() => {
-				isSavedCallBack(false);
-				setIsSaved(false);
-			});
+            editorRef.current.onDidChangeModelContent(() => {
+                isSavedCallBack(false);
+                setIsSaved(false);
+            });
 
-			return () => {
-				editorRef.current?.dispose();
-			};
-		}
-	}, []);
+            return () => {
+                editorRef.current?.dispose();
+            };
+        }
+    }, [fileRef]);
 
-	// every 10s save content
-	useEffect(() => {
-		const interval = setInterval(() => {
-			if (isSaved) return;
+    useEffect(() => {
+        if (!file || !project) return;
 
-			if (editorRef.current) {
-				// TODO
-				console.log("Saving content:", editorRef.current.getValue());
-				isSavedCallBack(true);
-				setIsSaved(true);
-			}
-		}, 10000);
+        fetch(`${backendURL}/files?projectName=${project.name}&path=${file}`).then(async (response) => {
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                setContent(null);
+                showError(err.error || `Failed to fetch file content: ${response.statusText}`);
+                throw new Error(err.error || `Failed to fetch file content: ${response.statusText}`);
+            }
+            return response.json();
+        }).then((data: { content: string }) => {
+            console.log(data);
+            setContent(data.content);
+            if (editorRef.current) {
+                editorRef.current.setValue(data.content);
+            }
+        }).catch((err) => {
+            setContent(null);
+            showError(err.message || 'Error fetching file content');
+            console.error('Error fetching file content:', err);
+        });
+    }, [file]);
 
-		return () => clearInterval(interval);
-	}, [isSavedCallBack]);
+    // every 10s save content
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (isSaved) return;
 
-	return <div ref={editorContainer} className="w-full h-full" />;
+            if (editorRef.current) {
+                saveContent();
+            }
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [isSavedCallBack]);
+
+    return (
+        file ? (
+            content === null ? (
+                <LoadingElement text={"Loading file content..."}/>
+            ) : (
+                <div ref={editorContainer} className="w-full h-full"/>
+            )
+        ) : (
+            <div className="flex items-center justify-center h-full text-neutral-500">
+                <p className="text-sm italic">Select a file to start editing...</p>
+            </div>
+        )
+    )
 }

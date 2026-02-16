@@ -11,6 +11,7 @@ interface ExplorerProps {
     explorerWidth: number;
     scrollbarClasses: string;
     project?: Project;
+    onSelectFile: (filePath: string) => void;
 }
 
 export interface ProjectFile {
@@ -24,7 +25,7 @@ export interface ProjectTree {
     [key: string]: ProjectFile[];
 }
 
-export function Explorer({explorerWidth, scrollbarClasses, project}: ExplorerProps) {
+export function Explorer({explorerWidth, scrollbarClasses, project, onSelectFile}: ExplorerProps) {
     const [projectTree, setProjectTree] = useState<ProjectTree | null>(null);
     const {backendURL, showError} = useAppContext();
     const [reload, setReload] = useState<number>(0);
@@ -61,7 +62,7 @@ export function Explorer({explorerWidth, scrollbarClasses, project}: ExplorerPro
                 <button onClick={() => setReload((prev) => prev + 1)}
                         className="ml-auto p-1 text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/80 rounded-md transition-all active:scale-95"
                         title="Refresh File Tree">
-                <RefreshCw size={14}/>
+                    <RefreshCw size={14}/>
                 </button>
             </div>
             <div className={`flex-1 p-3 text-sm text-neutral-500 font-mono overflow-auto ${scrollbarClasses}`}>
@@ -76,7 +77,8 @@ export function Explorer({explorerWidth, scrollbarClasses, project}: ExplorerPro
                             <span>No files found in this project.</span>
                         </div>
                     ) : (
-                        <ProjectTreeView projectTree={projectTree} project={project} onReload={() => setReload(r => r + 1)}/>
+                        <ProjectTreeView projectTree={projectTree} project={project} onSelectFile={onSelectFile}
+                                         onReload={() => setReload(r => r + 1)}/>
                     )
                 )}
             </div>

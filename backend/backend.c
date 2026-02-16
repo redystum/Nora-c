@@ -9,8 +9,9 @@ static const controller_t controllers[] = {
     {.path = "/projects/files", .method = NORA_GET, .fun = get_project_files},
     {.path = "/projects/files/delete", .method = NORA_POST, .fun = delete_project_file},
 
-    // {.path = "files", .method = NORA_GET, .fun = get_file},
+    {.path = "/files", .method = NORA_GET, .fun = get_file},
     {.path = "/files", .method = NORA_POST, .fun = create_file},
+    {.path = "/files/update", .method = NORA_POST, .fun = update_file},
 
     // {.path = "folders", .method = NORA_GET, .fun = get_folder},
     {.path = "/folders", .method = NORA_POST, .fun = create_folder},
