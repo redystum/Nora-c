@@ -1,8 +1,25 @@
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useRef, useState, useCallback} from 'preact/hooks';
 import * as monaco from 'monaco-editor';
 import {Project} from "../../components/openProjetcModal";
 import {LoadingElement} from "../../components/LoadingElement";
 import {useAppContext} from "../../AppContext";
+
+monaco.editor.defineTheme("dark-neutral", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+        "editor.background": "#0E0E0E",
+        "editor.foreground": "#FFFFFF",
+        "editorLineNumber.foreground": "#5A5A5A",
+        "editorLineNumber.activeForeground": "#FFFFFF",
+        "editorCursor.foreground": "#FFFFFF",
+        "editor.selectionBackground": "#2A2A2A",
+        "editor.lineHighlightBackground": "#1A1A1A",
+        "editorWhitespace.foreground": "#2B2B2B",
+        "editorIndentGuide.background": "#2B2B2B",
+    },
+});
 
 interface MonacoEditorProps {
     isSavedCallBack: (saved: boolean) => void;
@@ -11,81 +28,109 @@ interface MonacoEditorProps {
 }
 
 export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps) {
-    const editorContainer = useRef(null);
-    const editorRef = useRef(null);
+    const editorContainer = useRef<HTMLDivElement>(null);
+    const editorInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
     const fileRef = useRef(file);
     const projectRef = useRef(project);
+    const isSavedRef = useRef(true);
 
-    const [isSaved, setIsSaved] = useState<boolean>(true);
-    const [content, setContent] = useState<string | null>(null);
+    const isSavedCallBackRef = useRef(isSavedCallBack);
 
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const {backendURL, showError} = useAppContext();
 
     useEffect(() => {
-        saveContent();
-
-        fileRef.current = file;
-        projectRef.current = project;
+        saveContent().then(() => {
+            fileRef.current = file;
+            projectRef.current = project;
+        });
     }, [file, project]);
 
-    const saveContent = () => {
-        if (editorRef.current) {
-            console.log("Saving content:", editorRef.current.getValue());
+    useEffect(() => {
+        isSavedCallBackRef.current = isSavedCallBack;
+    }, [isSavedCallBack]);
 
-            const currentFile = fileRef.current;
-            const currentProject = projectRef.current;
+    const setSaveState = useCallback((saved: boolean) => {
+        isSavedRef.current = saved;
+        if (isSavedCallBackRef.current) {
+            isSavedCallBackRef.current(saved);
+        }
+    }, []);
 
-            fetch(`${backendURL}/files/update`, {
+    const saveContent = useCallback(async () => {
+        if (!editorInstance.current || isSavedRef.current) return;
+
+        console.log("Saving content...");
+        const contentToSave = editorInstance.current.getValue();
+        const currentFile = fileRef.current;
+        const currentProject = projectRef.current;
+
+        if (!currentFile || !currentProject) return;
+
+        try {
+            const response = await fetch(`${backendURL}/files/update`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    content: editorRef.current.getValue(),
+                    content: contentToSave,
                     projectName: currentProject.name,
                     path: currentFile,
                 }),
-            }).then(async (response) => {
-                if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    showError(err.error || `Failed to save file content: ${response.statusText}`);
-                    throw new Error(err.error || `Failed to save file content: ${response.statusText}`);
-                }
-
-                isSavedCallBack(true);
-                setIsSaved(true);
-            }).catch((err) => {
-                showError(err.message || 'Error saving file content');
-                console.error('Error saving file content:', err);
             });
 
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                showError(err.error || `Failed to save file: ${response.statusText}`);
+                return;
+            }
+
+            setSaveState(true);
+        } catch (err: any) {
+            showError(err.message || 'Error saving file content');
+            console.error('Error saving file content:', err);
         }
-    }
-
-    monaco.editor.defineTheme("dark-neutral", {
-        base: "vs-dark",
-        inherit: true,
-        rules: [],
-        colors: {
-            "editor.background": "#0E0E0E",
-            "editor.foreground": "#FFFFFF",
-
-            "editorLineNumber.foreground": "#5A5A5A",
-            "editorLineNumber.activeForeground": "#FFFFFF",
-
-            "editorCursor.foreground": "#FFFFFF",
-            "editor.selectionBackground": "#2A2A2A",
-            "editor.lineHighlightBackground": "#1A1A1A",
-
-            "editorWhitespace.foreground": "#2B2B2B",
-            "editorIndentGuide.background": "#2B2B2B",
-        },
-    });
-
+    }, [backendURL, showError, setSaveState]);
 
     useEffect(() => {
-        if (editorContainer.current) {
-            editorRef.current = monaco.editor.create(editorContainer.current, {
+        if (!file || !project) return;
+
+        const switchFile = async () => {
+            if (!isSavedRef.current) {
+                await saveContent();
+            }
+
+            setIsLoading(true);
+
+            try {
+                const response = await fetch(`${backendURL}/files?projectName=${project.name}&path=${file}`);
+                if (!response.ok) {
+                    showError(`Failed to load file: ${response.statusText}`);
+                    throw new Error("Failed to fetch");
+                }
+
+                const data = await response.json();
+
+                if (editorInstance.current) {
+                    editorInstance.current.setValue(data.content);
+                    isSavedRef.current = true;
+                    if (isSavedCallBackRef.current) isSavedCallBackRef.current(true);
+                }
+            } catch (err: any) {
+                showError(err.message);
+                if (editorInstance.current) editorInstance.current.setValue("// Error loading file");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        switchFile();
+
+    }, [file, project?.name, backendURL]);
+
+    useEffect(() => {
+        if (editorContainer.current && !editorInstance.current) {
+            editorInstance.current = monaco.editor.create(editorContainer.current, {
                 value: '',
                 language: 'c',
                 theme: 'dark-neutral',
@@ -97,71 +142,49 @@ export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps
                 renderLineHighlight: "all",
             });
 
-            editorRef.current.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                if (editorRef.current) {
-                    saveContent();
+            editorInstance.current.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+                isSavedRef.current = false;
+                saveContent();
+            });
+
+            editorInstance.current.onDidChangeModelContent(() => {
+                if (isSavedRef.current) {
+                    setSaveState(false);
                 }
             });
-
-            editorRef.current.onDidChangeModelContent(() => {
-                isSavedCallBack(false);
-                setIsSaved(false);
-            });
-
-            return () => {
-                editorRef.current?.dispose();
-            };
         }
-    }, [fileRef]);
 
-    useEffect(() => {
-        if (!file || !project) return;
+        return () => {
+            editorInstance.current?.dispose();
+            editorInstance.current = null;
+        };
+    }, [setSaveState, saveContent]);
 
-        fetch(`${backendURL}/files?projectName=${project.name}&path=${file}`).then(async (response) => {
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                setContent(null);
-                showError(err.error || `Failed to fetch file content: ${response.statusText}`);
-                throw new Error(err.error || `Failed to fetch file content: ${response.statusText}`);
-            }
-            return response.json();
-        }).then((data: { content: string }) => {
-            console.log(data);
-            setContent(data.content);
-            if (editorRef.current) {
-                editorRef.current.setValue(data.content);
-            }
-        }).catch((err) => {
-            setContent(null);
-            showError(err.message || 'Error fetching file content');
-            console.error('Error fetching file content:', err);
-        });
-    }, [file]);
-
-    // every 10s save content
     useEffect(() => {
         const interval = setInterval(() => {
-            if (isSaved) return;
-
-            if (editorRef.current) {
+            if (!isSavedRef.current) {
                 saveContent();
             }
         }, 10000);
 
         return () => clearInterval(interval);
-    }, [isSavedCallBack]);
+    }, [saveContent]);
 
     return (
-        file ? (
-            content === null ? (
-                <LoadingElement text={"Loading file content..."}/>
-            ) : (
-                <div ref={editorContainer} className="w-full h-full"/>
-            )
-        ) : (
-            <div className="flex items-center justify-center h-full text-neutral-500">
-                <p className="text-sm italic">Select a file to start editing...</p>
-            </div>
-        )
-    )
+        <div className="relative w-full h-full">
+            {!file && (
+                <div className="flex items-center justify-center h-full text-neutral-500">
+                    <p className="text-sm italic">Select a file to start editing...</p>
+                </div>
+            )}
+
+            {file && isLoading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-sm">
+                    <LoadingElement text={"Loading file content..."}/>
+                </div>
+            )}
+
+            <div ref={editorContainer} className="w-full h-full"/>
+        </div>
+    );
 }
