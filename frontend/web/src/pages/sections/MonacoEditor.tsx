@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState, useCallback} from 'preact/hooks';
 import * as monaco from 'monaco-editor';
+import {registerCIntellisense} from "../../monaco/c-intellisense";
 import {Project} from "../../components/openProjetcModal";
 import {LoadingElement} from "../../components/LoadingElement";
 import {useAppContext} from "../../AppContext";
@@ -129,7 +130,11 @@ export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps
     }, [file, project?.name, backendURL]);
 
     useEffect(() => {
+        let disposal: monaco.IDisposable | undefined;
+
         if (editorContainer.current && !editorInstance.current) {
+            disposal = registerCIntellisense();
+
             editorInstance.current = monaco.editor.create(editorContainer.current, {
                 value: '',
                 language: 'c',
@@ -155,6 +160,7 @@ export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps
         }
 
         return () => {
+            if (disposal) disposal.dispose();
             editorInstance.current?.dispose();
             editorInstance.current = null;
         };
