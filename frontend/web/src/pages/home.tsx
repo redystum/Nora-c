@@ -1,5 +1,5 @@
 import {useState} from 'preact/hooks';
-import {MonacoEditor} from './sections/MonacoEditor';
+import {Editor} from './sections/Editor';
 import {Project} from "../components/openProjetcModal";
 import {Header} from "./sections/Header";
 import {Explorer} from "./sections/Explorer";
@@ -125,7 +125,7 @@ export function Home({project}: { project?: Project }) {
 
                         <div
                             className="absolute top-9 bottom-0 left-0 right-0 m-2 rounded-lg overflow-hidden bg-neutral-950 shadow-inner shadow-black">
-                            <MonacoEditor isSavedCallBack={handleEditorOnSave} project={project} file={file?.path}/>
+                            <Editor isSavedCallBack={handleEditorOnSave} project={project} file={file?.path}/>
                         </div>
                     </div>
 

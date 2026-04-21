@@ -4,6 +4,7 @@ import {registerCIntellisense} from "../../monaco/c-intellisense";
 import {Project} from "../../components/openProjetcModal";
 import {LoadingElement} from "../../components/LoadingElement";
 import {useAppContext} from "../../AppContext";
+import {ObjectEditor} from "../../components/ObjectEditor";
 
 monaco.editor.defineTheme("dark-neutral", {
     base: "vs-dark",
@@ -28,7 +29,7 @@ interface MonacoEditorProps {
     project?: Project;
 }
 
-export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps) {
+export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
     const editorContainer = useRef<HTMLDivElement>(null);
     const editorInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -176,6 +177,18 @@ export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps
         return () => clearInterval(interval);
     }, [saveContent]);
 
+    const fileType = (filePath: string): string => {
+        if (!filePath) return '';
+
+        if (filePath.endsWith('wobj')) {
+            return 'object'
+        } else if (filePath.endsWith('wscene')) {
+            return 'scene'
+        } else {
+            return 'c'
+        }
+    }
+
     return (
         <div className="relative w-full h-full">
             {!file && (
@@ -190,7 +203,14 @@ export function MonacoEditor({isSavedCallBack, file, project}: MonacoEditorProps
                 </div>
             )}
 
-            <div ref={editorContainer} className="w-full h-full"/>
+            {fileType(file) == 'object' && (
+                <ObjectEditor project={project} file={file} isSavedCallBack={setSaveState}/>
+            )}
+
+            {['scene', 'c', 'nora'].includes(fileType(file)) && (
+                <div ref={editorContainer} className="w-full h-full"/>
+            )}
+
         </div>
     );
 }
