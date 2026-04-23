@@ -42,6 +42,21 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const {backendURL, showError} = useAppContext();
 
+    const fileType = (filePath: string): string => {
+        if (!filePath) return 'c';
+
+        if (filePath.endsWith('wobj')) {
+            return 'object';
+        } else if (filePath.endsWith('wscene')) {
+            return 'scene';
+        } else {
+            return 'c';
+        }
+    };
+
+    const currentFileType = fileType(file || '');
+    const isObjectFile = currentFileType === 'object';
+
     useEffect(() => {
         saveContent().then(() => {
             fileRef.current = file;
@@ -98,6 +113,8 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
         if (!file || !project) return;
 
         const switchFile = async () => {
+            if (isObjectFile) return;
+
             if (!isSavedRef.current) {
                 await saveContent();
             }
@@ -128,7 +145,7 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
 
         switchFile();
 
-    }, [file, project?.name, backendURL]);
+    }, [file, project?.name, backendURL, isObjectFile, saveContent, showError]);
 
     useEffect(() => {
         let disposal: monaco.IDisposable | undefined;
@@ -177,17 +194,15 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
         return () => clearInterval(interval);
     }, [saveContent]);
 
-    const fileType = (filePath: string): string => {
-        if (!filePath) return '';
+    useEffect(() => {
+        if (isObjectFile) return;
 
-        if (filePath.endsWith('wobj')) {
-            return 'object'
-        } else if (filePath.endsWith('wscene')) {
-            return 'scene'
-        } else {
-            return 'c'
-        }
-    }
+        const id = requestAnimationFrame(() => {
+            editorInstance.current?.layout();
+        });
+
+        return () => cancelAnimationFrame(id);
+    }, [isObjectFile, file]);
 
     return (
         <div className="relative w-full h-full">
@@ -203,12 +218,15 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
                 </div>
             )}
 
-            {fileType(file) == 'object' && (
-                <ObjectEditor project={project} file={file} isSavedCallBack={setSaveState}/>
-            )}
+            <div
+                ref={editorContainer}
+                className={`w-full h-full ${isObjectFile ? 'invisible pointer-events-none absolute inset-0' : ''}`}
+            />
 
-            {['scene', 'c', 'nora'].includes(fileType(file)) && (
-                <div ref={editorContainer} className="w-full h-full"/>
+            {isObjectFile && (
+                <div className="absolute inset-0">
+                    <ObjectEditor project={project} file={file} isSavedCallBack={setSaveState}/>
+                </div>
             )}
 
         </div>
