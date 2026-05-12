@@ -40,7 +40,7 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
     const isSavedCallBackRef = useRef(isSavedCallBack);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const {backendURL, showError} = useAppContext();
+    const {backendURL, showError, setCanRunCurrentFile} = useAppContext();
 
     const fileType = (filePath: string): string => {
         if (!filePath) return 'c';
@@ -56,6 +56,8 @@ export function Editor({isSavedCallBack, file, project}: MonacoEditorProps) {
 
     const currentFileType = fileType(file || '');
     const isObjectFile = currentFileType === 'object';
+
+    setCanRunCurrentFile(currentFileType === 'scene');
 
     useEffect(() => {
         saveContent().then(() => {

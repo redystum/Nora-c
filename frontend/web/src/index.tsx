@@ -31,6 +31,7 @@ export function App() {
     const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
     const [retry, setRetry] = useState<number>(1);
     const [error, setError] = useState<string | null>(null);
+    const [canRunCurrentFile, setCanRunCurrentFile] = useState<boolean>(false);
 
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -108,7 +109,7 @@ export function App() {
 
     return (
         <AppContext.Provider value={{
-            setIsGlobalLoading, backendURL, wsURL, openOpenProjectModal, showError, setIsCreateFileOrFolderModalOpen
+            setIsGlobalLoading, backendURL, wsURL, openOpenProjectModal, showError, setIsCreateFileOrFolderModalOpen, setCanRunCurrentFile
         }}>
             {isLoading ? (
                 <LoadingScreen text={loadingStatus}/>
@@ -116,7 +117,7 @@ export function App() {
                 <>
                     {isGlobalLoading && <LoadingScreen/>}
                     <Toast message={error} onClose={() => setError(null)} />
-                    <Home project={selectedProject}/>
+                    <Home project={selectedProject} canRunCurrentFile={canRunCurrentFile}/>
                     <OpenProjectModal
                         isOpen={isOpenProjectModalOpen}
                         onSelect={handleProjectSelect}

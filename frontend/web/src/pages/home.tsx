@@ -6,8 +6,12 @@ import {Explorer} from "./sections/Explorer";
 import {Console} from "./sections/Console";
 import {ChevronRight, Circle} from 'lucide-preact';
 
+interface HomeProps {
+    project?: Project;
+    canRunCurrentFile: boolean;
+}
 
-export function Home({project}: { project?: Project }) {
+export function Home({project, canRunCurrentFile}: HomeProps) {
     const [explorerWidth, setExplorerWidth] = useState<number>(260);
     const [consoleHeight, setConsoleHeight] = useState<number>(250);
     const [isConsoleOpen, setIsConsoleOpen] = useState<boolean>(true);
@@ -72,6 +76,14 @@ export function Home({project}: { project?: Project }) {
         setFile({path: filePath, parentFolders: pathParts, name: fileName});
     }
 
+    const runCurrentFile = () => {
+        // TODO
+    }
+
+    const runAllFiles = () => {
+        // TODO
+    }
+
     // Reusable custom scrollbar classes
     const scrollbarClasses = "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-800 hover:[&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full transition-colors";
 
@@ -84,6 +96,9 @@ export function Home({project}: { project?: Project }) {
                 isConsoleOpen={isConsoleOpen}
                 setIsConsoleOpen={setIsConsoleOpen}
                 project={project}
+                runCurrent={runCurrentFile}
+                runAll={runAllFiles}
+                canRunCurrentFile={canRunCurrentFile}
             />
 
             <div className="flex flex-1 overflow-hidden">

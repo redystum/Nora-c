@@ -3,7 +3,7 @@ import {
     Settings,
     TerminalSquare,
     Circle,
-    FolderOpen,
+    FolderOpen, FilePlay,
 } from 'lucide-preact';
 import logo from '../../assets/logo.png';
 import {useAppContext} from "../../AppContext";
@@ -15,9 +15,12 @@ interface HeaderProps {
     isConsoleOpen: boolean;
     setIsConsoleOpen: (open: boolean) => void;
     project?: Project;
+    runCurrent: () => void;
+    runAll: () => void;
+    canRunCurrentFile: boolean
 }
 
-export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen, project }: HeaderProps){
+export function Header({isSaved, isConsoleOpen, setIsConsoleOpen, project, runCurrent, runAll, canRunCurrentFile}: HeaderProps) {
 
     const {openOpenProjectModal} = useAppContext()
 
@@ -38,11 +41,12 @@ export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen, project }: He
                     className="cursor-pointer p-1.5 rounded-lg text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition-colors"
                     title="Open Project"
                 >
-                    <FolderOpen size={18} />
+                    <FolderOpen size={18}/>
                 </button>
 
                 <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-neutral-100 font-medium tracking-tight">{ project?.name }</span>
+                    <span
+                        className="font-mono text-sm text-neutral-100 font-medium tracking-tight">{project?.name}</span>
                     <span
                         className="focus:outline-none ml-1 transition-transform hover:scale-110"
                         title={isSaved ? "Saved" : "Unsaved changes"}
@@ -77,12 +81,23 @@ export function Header({ isSaved, isConsoleOpen, setIsConsoleOpen, project }: He
                 <div className="w-px h-5 bg-neutral-800 mx-1 rounded-full"></div>
 
                 <button
+                    onClick={runCurrent}
+                    className="cursor-pointer group flex items-center gap-1.5 px-4 py-1.5 ml-1 bg-neutral-800 hover:bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-lg text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-neutral-500 disabled:border-neutral-700/80"
+                    title="Run Code"
+                    disabled={!canRunCurrentFile}
+                >
+                    <FilePlay size={14} strokeWidth={3}
+                              className="fill-neutral-950 transition-transform group-hover:translate-x-0.5"/>
+                    Run Current
+                </button>
+                <button
+                    onClick={runAll}
                     className="cursor-pointer group flex items-center gap-1.5 px-4 py-1.5 ml-1 bg-neutral-100 hover:bg-white text-neutral-950 rounded-lg text-xs font-bold transition-all active:scale-95 ]"
                     title="Run Code"
                 >
                     <Play size={14} strokeWidth={3}
                           className="fill-neutral-950 transition-transform group-hover:translate-x-0.5"/>
-                    RUN
+                    RUN ALL
                 </button>
             </div>
         </header>

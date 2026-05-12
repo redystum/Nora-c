@@ -4,6 +4,7 @@ import {CreateFileOrFolderModalState} from "./index";
 
 interface AppContextProps {
     setIsGlobalLoading: (value: (((prevState: boolean) => boolean) | boolean)) => void;
+    setCanRunCurrentFile: (value: (((prevState: boolean) => boolean) | boolean)) => void;
     backendURL: string | null;
     wsURL?: string | null;
     openOpenProjectModal?: () => void;
@@ -15,6 +16,7 @@ interface AppContextProps {
 
 const AppContext = createContext<AppContextProps>({
     setIsGlobalLoading: _ => false,
+    setCanRunCurrentFile: _ => false,
     backendURL: null,
     wsURL: null,
     openOpenProjectModal: null,
