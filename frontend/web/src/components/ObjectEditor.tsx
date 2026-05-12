@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {ArrowDown, ArrowUp, GripVertical, MousePointerSquareDashed} from 'lucide-preact';
 import {Project} from "./openProjetcModal";
 import {useAppContext} from "../AppContext";
@@ -24,6 +24,48 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
     const {backendURL, showError} = useAppContext();
+
+    useEffect(() => {
+        const loadFromBackend = async () => {
+            if (!file || !project || !backendURL) return;
+
+            try {
+                const response = await fetch(
+                    `${backendURL}/files?projectName=${encodeURIComponent(project.name)}&path=${encodeURIComponent(file)}`
+                );
+
+                if (!response.ok) {
+                    if (response.status !== 404) {
+                        const err = await response.json().catch(() => ({}));
+                        showError(err.error || 'Failed to load selectors');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                if (!data?.content) return;
+
+                const parsed = JSON.parse(data.content);
+                if (!Array.isArray(parsed)) return;
+
+                const isValid = parsed.every((item) =>
+                    typeof item?.type === 'string' &&
+                    typeof item?.label === 'string' &&
+                    typeof item?.value === 'string'
+                );
+
+                if (!isValid) return;
+
+                setSelectors(parsed);
+                isSavedCallBack(true);
+            } catch (e: any) {
+                console.error('Error loading selectors from backend:', e);
+                showError(`Failed to load: ${e.message}`);
+            }
+        };
+
+        loadFromBackend();
+    }, [backendURL, file, project]);
 
     const saveToBackend = async (selectorsToSave: typeof selectors) => {
         if (!file || !project || !backendURL) {
