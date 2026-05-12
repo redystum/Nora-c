@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import {ArrowDown, ArrowUp, Crosshair, GripVertical, MousePointerSquareDashed} from 'lucide-preact';
+import {ArrowDown, ArrowUp, GripVertical, MousePointerSquareDashed} from 'lucide-preact';
 import {Project} from "./openProjetcModal";
+import {useAppContext} from "../AppContext";
 
 const SELECTOR_TYPES = [
     { type: 'CSS_SELECTOR', label: 'CSS Selector' },
@@ -22,6 +23,37 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
     );
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+    const {backendURL, showError} = useAppContext();
+
+    const saveToBackend = async (selectorsToSave: typeof selectors) => {
+        if (!file || !project || !backendURL) {
+            console.log('Missing required data: file, project, or backendURL');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${backendURL}/files/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    projectName: project.name,
+                    path: file,
+                    content: JSON.stringify(selectorsToSave)
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                const errorMsg = err.error || 'Failed to save selectors';
+                showError(errorMsg);
+                return;
+            }
+            isSavedCallBack(true);
+        } catch (e: any) {
+            console.error('Error saving to backend:', e);
+            showError(`Failed to save: ${e.message}`);
+        }
+    };
 
     const moveItem = (index: number, direction: 'up' | 'down') => {
         if (direction === 'up' && index > 0) {
@@ -29,11 +61,13 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
             [newSelectors[index - 1], newSelectors[index]] = [newSelectors[index], newSelectors[index - 1]];
             setSelectors(newSelectors);
             isSavedCallBack(false);
+            saveToBackend(newSelectors);
         } else if (direction === 'down' && index < selectors.length - 1) {
             const newSelectors = [...selectors];
             [newSelectors[index + 1], newSelectors[index]] = [newSelectors[index], newSelectors[index + 1]];
             setSelectors(newSelectors);
             isSavedCallBack(false);
+            saveToBackend(newSelectors);
         }
     };
 
@@ -44,6 +78,7 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
         newSelectors.splice(toIndex, 0, dragged);
         setSelectors(newSelectors);
         isSavedCallBack(false);
+        saveToBackend(newSelectors);
     };
 
     const updateValue = (index: number, value: string) => {
@@ -51,6 +86,10 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
         newSelectors[index].value = value;
         setSelectors(newSelectors);
         isSavedCallBack(false);
+    };
+
+    const handleInputBlur = () => {
+        saveToBackend(selectors);
     };
 
     return (
@@ -139,6 +178,7 @@ export function ObjectEditor({isSavedCallBack, file, project}: ObjectEditorProps
                                     className="w-full rounded-md border border-neutral-700 bg-[#0F0F0F] px-3 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-sky-500/70 focus:outline-none focus:ring-1 focus:ring-sky-500/30"
                                     value={selector.value}
                                     onChange={(e) => updateValue(index, e.currentTarget.value)}
+                                    onBlur={handleInputBlur}
                                     placeholder={`Enter ${selector.label}...`}
                                 />
                             </label>

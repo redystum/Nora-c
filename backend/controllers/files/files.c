@@ -124,6 +124,26 @@ void get_file(struct mg_connection *c, struct mg_http_message *hm) {
     }
 }
 
+int update_text_file(FILE *file, const cJSON *content) {
+    fwrite(content->valuestring, 1, strlen(content->valuestring), file);
+    DEBUG("Updated text file with content: %s", content->valuestring);
+    return 1;
+}
+
+int update_wobj_file(FILE *file, const cJSON *content) {
+    // just to verify
+    cJSON *data = cJSON_Parse(content->valuestring);
+    if (!data) {
+        return 0;
+    }
+
+    fwrite(content->valuestring, 1, strlen(content->valuestring), file);
+
+    cJSON_Delete(data);
+    DEBUG("Updated .wobj file with content: %s", content->valuestring);
+    return 1;
+}
+
 void update_file(struct mg_connection *c, struct mg_http_message *hm) {
     char *body = malloc(hm->body.len + 1);
     if (!body) {
@@ -164,10 +184,33 @@ void update_file(struct mg_connection *c, struct mg_http_message *hm) {
     snprintf(full_path, sizeof(full_path), "%s/Documents/Nora/%s/%s", home, projectName->valuestring,
              path->valuestring);
 
+    INFO("Updating file at path: %s", full_path);
+    char extension[16];
+    const char *dot = strrchr(path->valuestring, '.');
+    if (dot && strlen(dot) < sizeof(extension)) {
+        strncpy(extension, dot + 1, sizeof(extension) - 1);
+        extension[sizeof(extension) - 1] = '\0';
+    } else {
+        strcpy(extension, "txt");
+    }
+    INFO("Extension %s", extension);
+
     FILE *f = fopen(full_path, "w");
-    if (f) {
-        fwrite(content->valuestring, 1, strlen(content->valuestring), f);
-        fclose(f);
+    if (!f) {
+        error_response(c, 404, "File not found");
+        cJSON_Delete(json);
+        return;
+    }
+
+    int result = 0;
+    if (strcmp(extension, "wobj") == 0) {
+        result = update_wobj_file(f, content);
+    } else {
+        result = update_text_file(f, content);
+    }
+
+    fclose(f);
+    if (result) {
         mg_http_reply(c, 200, DEFAULT_TEXT_HEADER, "File updated successfully");
     } else {
         error_response(c, 500, "Failed to update file");
