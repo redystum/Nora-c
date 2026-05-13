@@ -42,21 +42,31 @@ PROGRAM_OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(ALL_SRCS))
 # Ensure args.h is generated before compiling any object file
 $(PROGRAM_OBJS): $(PROGRAM_OPT).h
 
-# Frontend build rule: if dist doesn't exist, build it
-frontend/web/dist:
-	cd frontend/web && npm run build
-
 # --------------------------------------------------------------------------
 # TARGETS
 # --------------------------------------------------------------------------
 
-.PHONY: clean all docs indent debugon
+.DEFAULT_GOAL := build_frontend
+
+.PHONY: clean all docs indent debugon build_frontend
 
 all: $(PROGRAM)
 
 # Debug build
 debugon: CFLAGS += -D DEBUG_ENABLED -g
 debugon: $(PROGRAM)
+
+# Frontend build rule: if dist doesn't exist, build it
+build_frontend:
+	@if [ ! -d frontend/web/node_modules ]; then \
+		echo "node_modules missing; installing..."; \
+		cd frontend/web && npm install; \
+	fi
+	@if [ ! -d frontend/web/dist ]; then \
+		echo "Frontend dist missing; building..."; \
+		cd frontend/web && npm run build; \
+	fi
+
 
 # Optimization
 OPTIMIZE_FLAGS=-O2
