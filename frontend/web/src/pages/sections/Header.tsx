@@ -8,6 +8,7 @@ import {
 import logo from '../../assets/logo.png';
 import {useAppContext} from "../../AppContext";
 import {Project} from "../../components/openProjetcModal";
+import socket from "../../utils/socket";
 
 
 interface HeaderProps {
@@ -15,14 +16,51 @@ interface HeaderProps {
     isConsoleOpen: boolean;
     setIsConsoleOpen: (open: boolean) => void;
     project?: Project;
-    runCurrent: () => void;
-    runAll: () => void;
+    currentFilePath?: string | null;
     canRunCurrentFile: boolean
 }
 
-export function Header({isSaved, isConsoleOpen, setIsConsoleOpen, project, runCurrent, runAll, canRunCurrentFile}: HeaderProps) {
+export function Header({isSaved, isConsoleOpen, setIsConsoleOpen, project, currentFilePath, canRunCurrentFile}: HeaderProps) {
 
-    const {openOpenProjectModal} = useAppContext()
+    const {openOpenProjectModal, wsURL, showError} = useAppContext()
+
+    const runCurrentFromHeader = async () => {
+        if (!project || !currentFilePath) {
+            showError("No file selected to run.");
+            return;
+        }
+
+        if (!wsURL) {
+            showError("WebSocket URL not configured.");
+            return;
+        }
+
+        try {
+            await socket.connect(wsURL);
+            await socket.runFile(project.name, currentFilePath);
+        } catch (err: any) {
+            showError(err?.message || "Failed to start run.");
+        }
+    };
+
+    const runAllFromHeader = async () => {
+        if (!project) {
+            showError("No project selected.");
+            return;
+        }
+
+        if (!wsURL) {
+            showError("WebSocket URL not configured.");
+            return;
+        }
+
+        try {
+            await socket.connect(wsURL);
+            await socket.runAllFiles(project.name);
+        } catch (err: any) {
+            showError(err?.message || "Failed to start run-all.");
+        }
+    };
 
     return (
         <header
@@ -81,7 +119,7 @@ export function Header({isSaved, isConsoleOpen, setIsConsoleOpen, project, runCu
                 <div className="w-px h-5 bg-neutral-800 mx-1 rounded-full"></div>
 
                 <button
-                    onClick={runCurrent}
+                    onClick={runCurrentFromHeader}
                     className="cursor-pointer group flex items-center gap-1.5 px-4 py-1.5 ml-1 bg-neutral-800 hover:bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-lg text-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-neutral-500 disabled:border-neutral-700/80"
                     title="Run Code"
                     disabled={!canRunCurrentFile}
@@ -91,7 +129,7 @@ export function Header({isSaved, isConsoleOpen, setIsConsoleOpen, project, runCu
                     Run Current
                 </button>
                 <button
-                    onClick={runAll}
+                    onClick={runAllFromHeader}
                     className="cursor-pointer group flex items-center gap-1.5 px-4 py-1.5 ml-1 bg-neutral-100 hover:bg-white text-neutral-950 rounded-lg text-xs font-bold transition-all active:scale-95 ]"
                     title="Run Code"
                 >

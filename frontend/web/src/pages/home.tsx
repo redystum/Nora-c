@@ -5,6 +5,8 @@ import {Header} from "./sections/Header";
 import {Explorer} from "./sections/Explorer";
 import {Console} from "./sections/Console";
 import {ChevronRight, Circle} from 'lucide-preact';
+import {useAppContext} from "../AppContext";
+import socket from "../utils/socket";
 
 interface HomeProps {
     project?: Project;
@@ -17,6 +19,7 @@ export function Home({project, canRunCurrentFile}: HomeProps) {
     const [isConsoleOpen, setIsConsoleOpen] = useState<boolean>(true);
     const [isSaved, setIsSaved] = useState<boolean>(true);
     const [file, setFile] = useState<{ path: string; parentFolders: string[], name: string } | null>(null);
+    const {wsURL, setIsGlobalLoading, showError} = useAppContext();
 
     const handleEditorOnSave = (saved: boolean) => {
         setIsSaved(saved);
@@ -76,12 +79,49 @@ export function Home({project, canRunCurrentFile}: HomeProps) {
         setFile({path: filePath, parentFolders: pathParts, name: fileName});
     }
 
-    const runCurrentFile = () => {
-        // TODO
+    const runCurrentFile = async () => {
+        if (!project || !file) {
+            showError && showError("No file selected to run.");
+            return;
+        }
+
+        if (!wsURL) {
+            showError && showError("WebSocket URL not configured.");
+            return;
+        }
+
+        try {
+            setIsGlobalLoading?.(true);
+            await socket.connect(wsURL);
+            await socket.runFile(project.name, file.path);
+        } catch (err: any) {
+            showError && showError(err?.message || "Failed to start run.");
+        } finally {
+            // fallback to stop global loading after short delay; real stop should come from server message
+            setTimeout(() => setIsGlobalLoading?.(false), 2000);
+        }
     }
 
-    const runAllFiles = () => {
-        // TODO
+    const runAllFiles = async () => {
+        if (!project) {
+            showError && showError("No project selected.");
+            return;
+        }
+
+        if (!wsURL) {
+            showError && showError("WebSocket URL not configured.");
+            return;
+        }
+
+        try {
+            setIsGlobalLoading?.(true);
+            await socket.connect(wsURL);
+            await socket.send({type: 'run_all', projectName: project.name, ts: Date.now()});
+        } catch (err: any) {
+            showError && showError(err?.message || "Failed to start run-all.");
+        } finally {
+            setTimeout(() => setIsGlobalLoading?.(false), 2000);
+        }
     }
 
     // Reusable custom scrollbar classes
@@ -96,8 +136,7 @@ export function Home({project, canRunCurrentFile}: HomeProps) {
                 isConsoleOpen={isConsoleOpen}
                 setIsConsoleOpen={setIsConsoleOpen}
                 project={project}
-                runCurrent={runCurrentFile}
-                runAll={runAllFiles}
+                currentFilePath={file?.path}
                 canRunCurrentFile={canRunCurrentFile}
             />
 

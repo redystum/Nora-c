@@ -184,7 +184,7 @@ void update_file(struct mg_connection *c, struct mg_http_message *hm) {
     snprintf(full_path, sizeof(full_path), "%s/Documents/Nora/%s/%s", home, projectName->valuestring,
              path->valuestring);
 
-    INFO("Updating file at path: %s", full_path);
+    DEBUG("Updating file at path: %s", full_path);
     char extension[16];
     const char *dot = strrchr(path->valuestring, '.');
     if (dot && strlen(dot) < sizeof(extension)) {
@@ -193,7 +193,7 @@ void update_file(struct mg_connection *c, struct mg_http_message *hm) {
     } else {
         strcpy(extension, "txt");
     }
-    INFO("Extension %s", extension);
+    DEBUG("Extension %s", extension);
 
     FILE *f = fopen(full_path, "w");
     if (!f) {

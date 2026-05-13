@@ -74,6 +74,8 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 
         struct mg_str response = mg_str("Hello from the websocket!");
         mg_ws_send(c, response.buf, response.len, WEBSOCKET_OP_TEXT);
+        response = mg_str("{\"type\": \"error\", \"message\": \"This is a test error message from the websocket!\"}");
+        mg_ws_send(c, response.buf, response.len, WEBSOCKET_OP_TEXT);
     }
 }
 
