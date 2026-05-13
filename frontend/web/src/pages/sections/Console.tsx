@@ -3,6 +3,14 @@ import {useEffect, useRef, useState} from "preact/hooks";
 import socket from "../../utils/socket";
 import {useAppContext} from "../../AppContext";
 
+type ConsoleLineType = "system" | "info" | "success" | "warning" | "error" | "code" | "code_error" | "end";
+type statusType = "idle" | "error" | "connected" | "closed" | "disconnected"
+
+interface ConsoleLine {
+    text: string;
+    type: ConsoleLineType;
+}
+
 interface ConsoleProps {
     consoleHeight: number;
     scrollbarClasses: string;
@@ -10,36 +18,102 @@ interface ConsoleProps {
 }
 
 export function Console({consoleHeight, scrollbarClasses, setIsConsoleOpen}: ConsoleProps) {
-    const [lines, setLines] = useState<string[]>([]);
-    const [status, setStatus] = useState<string>("idle");
+    const [lines, setLines] = useState<ConsoleLine[]>([]);
+    const [status, setStatus] = useState<statusType>("idle");
     const containerRef = useRef<HTMLDivElement | null>(null);
     const {wsURL} = useAppContext();
+
+    const appendLine = (line: ConsoleLine) => setLines(prev => [...prev, line]);
+
+    // Hook for "end" messages. Replace internals if you want custom app behavior.
+    const ExampleCall = () => {
+        window.dispatchEvent(new CustomEvent("nora:run-ended"));
+        console.log("ExampleCall executed on end message.");
+    };
+
+    const toConsoleLine = (msg: any): ConsoleLine => {
+        if (msg?.__socket_error) {
+            return {text: "[socket error]", type: "error"};
+        }
+
+        if (msg?.__socket_closed) {
+            return {text: `[socket closed: ${msg.code}]`, type: "warning"};
+        }
+
+        if (typeof msg === "string") {
+            return {text: msg, type: "info"};
+        }
+
+        if (msg && typeof msg === "object") {
+            const rawType = String(msg.type ?? "info").toLowerCase();
+            const text = (rawType === "end")
+                ? (msg.text ?? msg.message ?? "Execution finished.")
+                : (msg.text ?? msg.message ?? JSON.stringify(msg));
+            const type: ConsoleLineType =
+                rawType === "error" ? "error"
+                    : rawType === "success" ? "success"
+                        : rawType === "warn" || rawType === "warning" ? "warning"
+                            : rawType === "system" ? "system"
+                                : rawType === "code" ? "code"
+                                    : rawType === "code_error" ? "code_error"
+                                        : rawType === "end" ? "end"
+                                : "info";
+
+            return {text: typeof text === "string" ? text : JSON.stringify(text), type};
+        }
+
+        return {text: String(msg), type: "info"};
+    };
+
+    const lineClassByType = (type: ConsoleLineType) => {
+        if (type === "error") return "text-red-400";
+        if (type === "code_error") return "text-red-400";
+        if (type === "success") return "text-green-400";
+        if (type === "warning") return "text-orange-400";
+        if (type === "info") return "text-blue-400";
+        if (type === "end") return "text-violet-300 font-semibold";
+        if (type === "system") return "text-neutral-500";
+        return "text-neutral-300";
+    };
+
+    const codeBlockClassByType = (type: ConsoleLineType) => {
+        if (type === "code_error") {
+            return "bg-red-950/30 border border-red-500/40 text-red-400";
+        }
+        return "bg-neutral-900/80 border border-neutral-700/70 text-neutral-200";
+    };
+
+    const statusDotClass = () => {
+        if (status === "connected") return "bg-emerald-400";
+        if (status === "error") return "bg-red-400";
+        if (status === "closed") return "bg-violet-400";
+        if (status === "disconnected") return "bg-orange-400";
+        return "bg-neutral-500";
+    };
 
     useEffect(() => {
         // subscribe to socket events
         const unsub = socket.subscribe((msg: any) => {
-            // socket manager can emit raw strings or JSON objects
             if (msg?.__socket_error) {
-                setLines(prev => [...prev, `[socket error]`]);
+                appendLine(toConsoleLine(msg));
                 setStatus("error");
                 return;
             }
+
             if (msg?.__socket_closed) {
-                setLines(prev => [...prev, `[socket closed: ${msg.code}]`]);
+                appendLine(toConsoleLine(msg));
                 setStatus("closed");
                 return;
             }
-            // handle ping/pong or other control messages
-            if (typeof msg === "string") {
-                setLines(prev => [...prev, msg]);
-            } else if (msg && msg.type === "pong") {
+            if (msg && msg.type === "pong") {
                 // ignore or show heartbeat
-            } else if (msg && typeof msg === "object") {
-                // prefer msg.text or msg.message
-                const text = msg.text ?? msg.message ?? JSON.stringify(msg);
-                setLines(prev => [...prev, typeof text === "string" ? text : JSON.stringify(text)]);
             } else {
-                setLines(prev => [...prev, String(msg)]);
+                const line = toConsoleLine(msg);
+                if (line.type === "end") {
+                    ExampleCall();
+                    setStatus("connected");
+                }
+                appendLine(line);
             }
         });
 
@@ -70,7 +144,12 @@ export function Console({consoleHeight, scrollbarClasses, setIsConsoleOpen}: Con
                 <div className="flex items-center gap-2 text-neutral-400">
                     <TerminalSquare size={14}/>
                     <span className="text-xs font-bold uppercase tracking-widest">Console</span>
-                    <span className="ml-2 text-xs text-neutral-500">[{status}]</span>
+                    <div className="group relative ml-2 flex items-center">
+                        <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass()} shadow-[0_0_10px_rgba(255,255,255,0.12)]`}></span>
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border border-neutral-700 bg-neutral-950/95 px-2 py-1 text-[11px] font-medium text-neutral-200 opacity-0 shadow-lg transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-1">
+                            {status}
+                        </span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={clear}
@@ -90,12 +169,18 @@ export function Console({consoleHeight, scrollbarClasses, setIsConsoleOpen}: Con
                 className={`flex-1 p-4 font-mono text-sm text-neutral-300 overflow-auto bg-neutral-950/40 shadow-inner shadow-black/20 ${scrollbarClasses}`}>
                 {lines.length === 0 ? (
                     <>
-                        <p className="text-neutral-500">~ System initialized.</p>
-                        <p className="text-green-400/80 mt-1">➜ <span className="text-neutral-300">Ready for output...</span></p>
+                        <p className="text-neutral-500">¯\_(ツ)_/¯</p>
                     </>
                 ) : (
                     lines.map((l, idx) => (
-                        <pre key={idx} className="leading-5 m-0 whitespace-pre-wrap">{l}</pre>
+                        (l.type === "code" || l.type === "code_error") ? (
+                            <pre key={idx}
+                                 className={`leading-5 m-0 whitespace-pre-wrap p-3 rounded-md my-1 font-mono text-[13px] ${codeBlockClassByType(l.type)}`}>{l.text}</pre>
+                        ) : (l.type === "end") ? (
+                            <p key={idx} className="leading-5 m-0 whitespace-pre-wrap mt-8 bg-violet-900/20 border border-violet-500/40 text-violet-200 rounded-md px-3 py-2 my-1">{l.text}</p>
+                        ) : (
+                            <p key={idx} className={`leading-5 m-0 whitespace-pre-wrap ${lineClassByType(l.type)}`}>{l.text}</p>
+                        )
                     ))
                 )}
             </div>
