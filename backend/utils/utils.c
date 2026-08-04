@@ -56,18 +56,23 @@ void error_response(struct mg_connection *c, int status_code, const char *messag
     free(response);
 }
 
-void build_ws_response(struct mg_str *str, ws_msg_type_t type, const char *message) {
+void ws_response(struct mg_connection *c, ws_msg_type_t type, const char *message) {
     char *response = NULL;
-    asprintf(&response, "{\"type\": \"%s\", \"message\": \"%s\"}",
-             type == WS_SYSTEM ? "system" :
-             type == WS_INFO ? "info" :
-             type == WS_SUCCESS ? "success" :
-             type == WS_WARNING ? "warning" :
-             type == WS_ERROR ? "error" :
-             type == WS_CODE ? "code" :
-             type == WS_CODE_ERROR ? "code_error" :
-             type == WS_END ? "end" : "unknown",
-             message);
-
-    *str = mg_str(response);
+    if (type == WS_NO_FORMAT) {
+        response = strdup(message);
+    } else {
+        asprintf(&response, "{\"type\": \"%s\", \"message\": \"%s\"}",
+                 type == WS_SYSTEM ? "system" :
+                 type == WS_INFO ? "info" :
+                 type == WS_SUCCESS ? "success" :
+                 type == WS_WARNING ? "warning" :
+                 type == WS_ERROR ? "error" :
+                 type == WS_CODE ? "code" :
+                 type == WS_CODE_ERROR ? "code_error" :
+                 type == WS_END ? "end" : "unknown",
+                 message);
+    }
+    struct mg_str response_str = mg_str(response);
+    mg_ws_send(c, response_str.buf, response_str.len, WEBSOCKET_OP_TEXT);
+    free(response);
 }

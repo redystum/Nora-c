@@ -19,7 +19,8 @@ typedef enum {
     WS_ERROR,
     WS_CODE,
     WS_CODE_ERROR,
-    WS_END
+    WS_END,
+    WS_NO_FORMAT
 } ws_msg_type_t;
 
 typedef struct {

@@ -4,6 +4,6 @@
 #include "../../../lib/Mongoose/mongoose.h"
 #include "../../utils/utils.h"
 
-int run(struct mg_connection *c , struct mg_ws_message *wm);
+int run(struct mg_connection *c , const cJSON *content, const char *type);
 
 #endif // RUN_H

@@ -28,11 +28,11 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
         // cors stuff :/
         if (mg_match(hm->method, mg_str("OPTIONS"), NULL)) {
             mg_http_reply(c, 204,
-                "Access-Control-Allow-Origin: *\r\n"
-                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-                "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
-                "Access-Control-Max-Age: 86400\r\n"
-                "Content-Length: 0\r\n", "");
+                          "Access-Control-Allow-Origin: *\r\n"
+                          "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                          "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
+                          "Access-Control-Max-Age: 86400\r\n"
+                          "Content-Length: 0\r\n", "");
             return;
         }
 
@@ -45,7 +45,8 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 
         int i = 0;
         int found = 0;
-        DEBUG("Searching URI \"%.*s\" with method \"%.*s\"\n", (int) hm->uri.len, hm->uri.buf, (int) hm->method.len, hm->method.buf);
+        DEBUG("Searching URI \"%.*s\" with method \"%.*s\"\n", (int) hm->uri.len, hm->uri.buf, (int) hm->method.len,
+              hm->method.buf);
         while (controllers[i].path != NULL) {
             if (mg_match(hm->uri, mg_str(controllers[i].path), NULL)) {
                 controller_t ct = controllers[i];
@@ -72,7 +73,23 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
 
         DEBUG("Received message: %.*s\n", (int) wm->data.len, wm->data.buf);
 
-        run(c, wm);
+        cJSON *json = cJSON_Parse(wm->data.buf);
+        if (!json) {
+            DEBUG("Failed to parse JSON from WebSocket message: %.*s", (int) wm->data.len, wm->data.buf);
+        }
+
+        DEBUG_JSON(json);
+        char *type = cJSON_GetStringValue(cJSON_GetObjectItem(json, "type"));
+
+        if (type) {
+            if (strcmp(type, "ping") == 0) {
+                return;
+            }
+
+            run(c, json, type);
+            return;
+        }
+        DEBUG("Type not found");
     }
 }
 
