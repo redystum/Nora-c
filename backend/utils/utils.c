@@ -55,3 +55,19 @@ void error_response(struct mg_connection *c, int status_code, const char *messag
     mg_http_reply(c, status_code, DEFAULT_JSON_HEADER, "%s", response);
     free(response);
 }
+
+void build_ws_response(struct mg_str *str, ws_msg_type_t type, const char *message) {
+    char *response = NULL;
+    asprintf(&response, "{\"type\": \"%s\", \"message\": \"%s\"}",
+             type == WS_SYSTEM ? "system" :
+             type == WS_INFO ? "info" :
+             type == WS_SUCCESS ? "success" :
+             type == WS_WARNING ? "warning" :
+             type == WS_ERROR ? "error" :
+             type == WS_CODE ? "code" :
+             type == WS_CODE_ERROR ? "code_error" :
+             type == WS_END ? "end" : "unknown",
+             message);
+
+    *str = mg_str(response);
+}

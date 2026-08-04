@@ -2,6 +2,7 @@
 #define NORA_C_UTILS_H
 
 #include "../../lib/Mongoose/mongoose.h"
+#include "../backend.h"
 
 #define CORS "Access-Control-Allow-Origin: *\r\n"
 #define DEFAULT_JSON_HEADER CORS "Content-Type: application/json\r\n"
@@ -9,5 +10,6 @@
 
 int mkdir_p(const char *path);
 void error_response(struct mg_connection *c, int status_code, const char *message);
+void build_ws_response(struct mg_str *str, ws_msg_type_t type, const char *message);
 
 #endif //NORA_C_UTILS_H

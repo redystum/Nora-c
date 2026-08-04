@@ -11,6 +11,17 @@ typedef enum {
     NORA_POST,
 } methods_t;
 
+typedef enum {
+    WS_SYSTEM,
+    WS_INFO,
+    WS_SUCCESS,
+    WS_WARNING,
+    WS_ERROR,
+    WS_CODE,
+    WS_CODE_ERROR,
+    WS_END
+} ws_msg_type_t;
+
 typedef struct {
     char *path;
     void (*fun)(struct mg_connection *c, struct mg_http_message *hm);
