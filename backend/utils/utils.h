@@ -11,5 +11,6 @@
 int mkdir_p(const char *path);
 void error_response(struct mg_connection *c, int status_code, const char *message);
 void ws_response(struct mg_connection *c, ws_msg_type_t type, const char *message);
+void trim(char *str);
 
 #endif //NORA_C_UTILS_H

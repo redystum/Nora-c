@@ -59,20 +59,48 @@ void error_response(struct mg_connection *c, int status_code, const char *messag
 void ws_response(struct mg_connection *c, ws_msg_type_t type, const char *message) {
     char *response = NULL;
     if (type == WS_NO_FORMAT) {
-        response = strdup(message);
+        response = strdup(message ? message : "");
     } else {
-        asprintf(&response, "{\"type\": \"%s\", \"message\": \"%s\"}",
-                 type == WS_SYSTEM ? "system" :
-                 type == WS_INFO ? "info" :
-                 type == WS_SUCCESS ? "success" :
-                 type == WS_WARNING ? "warning" :
-                 type == WS_ERROR ? "error" :
-                 type == WS_CODE ? "code" :
-                 type == WS_CODE_ERROR ? "code_error" :
-                 type == WS_END ? "end" : "unknown",
-                 message);
+        cJSON *response_json = cJSON_CreateObject();
+        cJSON_AddStringToObject(response_json, "type",
+                                type == WS_SYSTEM ? "system" :
+                                type == WS_INFO ? "info" :
+                                type == WS_SUCCESS ? "success" :
+                                type == WS_WARNING ? "warning" :
+                                type == WS_ERROR ? "error" :
+                                type == WS_CODE ? "code" :
+                                type == WS_CODE_ERROR ? "code_error" :
+                                type == WS_END ? "end" : "unknown");
+        cJSON_AddStringToObject(response_json, "message", message ? message : "");
+        response = cJSON_PrintUnformatted(response_json);
+        cJSON_Delete(response_json);
+    }
+
+    if (!response) {
+        response = strdup("");
     }
     struct mg_str response_str = mg_str(response);
     mg_ws_send(c, response_str.buf, response_str.len, WEBSOCKET_OP_TEXT);
     free(response);
+}
+
+void trim(char *str) {
+    if (!str || *str == '\0') return;
+
+    // trailing spaces
+    char *end = str + strlen(str) - 1;
+    while (end >= str && isspace((unsigned char)*end)) {
+        *end = '\0';
+        end--;
+    }
+
+    // leading spaces
+    char *start = str;
+    while (*start && isspace((unsigned char)*start)) {
+        start++;
+    }
+
+    if (start != str) {
+        memmove(str, start, strlen(start) + 1);
+    }
 }
