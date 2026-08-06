@@ -9,7 +9,10 @@ import {ObjectEditor} from "../../components/ObjectEditor";
 monaco.editor.defineTheme("dark-neutral", {
     base: "vs-dark",
     inherit: true,
-    rules: [],
+    rules: [
+        { token: "custom-yellow", foreground: "#e0b868ff" },
+        { token: "custom-green-line", foreground: "#62C554" },
+    ],
     colors: {
         "editor.background": "#0E0E0E",
         "editor.foreground": "#FFFFFF",
