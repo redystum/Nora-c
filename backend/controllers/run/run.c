@@ -149,6 +149,9 @@ void build_missing_func_error_cjson(cJSON **error_data, char *line, char *c_file
 
 int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int content_count, char *project, char **c_files_path, int files_count) {
     int r = 0;
+    char **found_content = malloc(content_count * sizeof(char *));
+    int found_content_count = 0;
+    int return_count = 0;
     for (int i = 0; i < files_count; i++) {
         char *file_content = NULL;
         char file_path[4096];
@@ -180,6 +183,8 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                         asprintf(&error_msg, "Max iterations reached while parsing C file \"%s\", try to ident or reduce the file and try again.", c_files_path[i]);
                         cJSON_AddStringToObject(*error_data, "error", error_msg);
                         free(error_msg);
+                        free(found_content);
+                        free(file_content);
                         return -1;
                     }
                     continue;
@@ -206,6 +211,9 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                     if (*ptr_func == '\0' || *ptr_func == '$') {
                         DEBUG("No function found after line in C file: %s", c_files_path[i]);
                         build_missing_func_error_cjson(error_data, line, c_files_path[i]);
+                        free(found_content);
+                        free(file_content);
+                        free(line);
                         return -2;
                     }
 
@@ -217,6 +225,9 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                         asprintf(&error_msg, "Max iterations reached while parsing C file \"%s\", try to ident or reduce the file and try again.", c_files_path[i]);
                         cJSON_AddStringToObject(*error_data, "error", error_msg);
                         free(error_msg);
+                        free(found_content);
+                        free(file_content);
+                        free(line);
                         return -3;
                     }
                 }
@@ -235,6 +246,9 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                     } else if (*ptr_func == '\0' || *ptr_func == '$') {
                         DEBUG("No function found after line in C file: %s", c_files_path[i]);
                         build_missing_func_error_cjson(error_data, line, c_files_path[i]);
+                        free(found_content);
+                        free(file_content);
+                        free(line);
                         return -2;
                     }
                     ptr_func++;
@@ -245,6 +259,9 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                         asprintf(&error_msg, "Max iterations reached while parsing C file \"%s\", try to ident or reduce the file and try again.", c_files_path[i]);
                         cJSON_AddStringToObject(*error_data, "error", error_msg);
                         free(error_msg);
+                        free(found_content);
+                        free(file_content);
+                        free(line);
                         return -3;
                     }
                 }
@@ -264,11 +281,30 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
                     // TODO: variables
                     if (content[j] != NULL && strcmp(line, content[j]) == 0) {
                         DEBUG("Matched line: '%s' with C file: %s", line, c_files_path[i]);
+
+                        for (int k = 0; k < found_content_count; k++) {
+                            if (strcmp(found_content[k], content[j]) == 0) {
+                                DEBUG("Line: '%s' already matched with another C file, skipping", content[j]);
+                                char *warn_name = NULL;
+                                char *warn_msg = NULL;
+                                asprintf(&warn_name, "warning_%d", return_count + 1);
+                                asprintf(&warn_msg, "Scene: '%s' already matched, skipping", content[j]);
+                                cJSON_AddStringToObject(*error_data, warn_name, warn_msg);
+                                free(warn_msg);
+                                free(warn_name);
+                                return_count++;
+                                break;
+                            }
+                        }
+
                         cJSON *scene = cJSON_CreateObject();
                         cJSON_AddStringToObject(scene, "line", strdup(line));
                         cJSON_AddStringToObject(scene, "c_file", strdup(c_files_path[i]));
                         cJSON_AddStringToObject(scene, "c_function", strdup(function));
                         cJSON_AddItemToArray(*scenes, scene);
+
+                        found_content[found_content_count] = strdup(content[j]);
+                        found_content_count++;
 
                         content[j] = NULL; // matched
 
@@ -292,10 +328,17 @@ int match_c_with_scenes(cJSON **scenes, cJSON **error_data, char **content, int 
             }
         }
 
+        // TODO FIX double free
+        INFO("FREE1");
         free(file_content);
+        INFO("FREE2");
+        free(found_content);
+        INFO("FREE3");
     }
 
-    return 0;
+    // TODO check missing scenes
+
+    return return_count;
 }
 
 int run_file(struct mg_connection *c, const cJSON *ws_content) {
@@ -367,6 +410,17 @@ int run_file(struct mg_connection *c, const cJSON *ws_content) {
             free(c_files_path[i]);
         }
         free(c_files_path);
+        cJSON_Delete(scenes);
+        free(content);
+        free(content_array);
+        return -1;
+    } else if (r > 0) {
+        DEBUG("Found %i matched scenes, but some lines were already matched with other C files", r);
+        for (int i = 0; i < cJSON_GetArraySize(error_data); i++) {
+            cJSON *error_item = cJSON_GetArrayItem(error_data, i);
+            char *warn_msg = cJSON_GetStringValue(error_item);
+            ws_response(c, WS_WARNING, warn_msg);
+        }
     }
 
     DEBUG("Found %i matched scenes", cJSON_GetArraySize(scenes));
